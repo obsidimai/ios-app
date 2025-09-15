@@ -3,6 +3,7 @@ name: Build iOS IPA
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -14,7 +15,8 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
       - name: Copy web assets
         run: npx cap copy ios
@@ -24,7 +26,7 @@ jobs:
           cd ios/App
           pod install --repo-update
 
-      - name: Build archive
+      - name: Build archive (unsigned)
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace \
@@ -32,17 +34,19 @@ jobs:
             -sdk iphoneos \
             -configuration Release \
             -archivePath build/App.xcarchive archive \
-            DEVELOPMENT_TEAM=YOUR_TEAM_ID_HERE
-      
-      - name: Export IPA
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Export unsigned IPA
         run: |
           cd ios/App
           xcodebuild -exportArchive \
             -archivePath build/App.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath build
+            -exportPath export \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
           path: ios/App/export/*.ipa
