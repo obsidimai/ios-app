@@ -24,16 +24,23 @@ jobs:
           cd ios/App
           pod install --repo-update
 
-      - name: Build iOS app
+      - name: Build archive
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
-            -configuration Release \
             -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive archive
-
+            -configuration Release \
+            -archivePath build/App.xcarchive archive \
+            DEVELOPMENT_TEAM=YOUR_TEAM_ID_HERE
+      
+      - name: Export IPA
+        run: |
+          cd ios/App
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build
 
       - uses: actions/upload-artifact@v4
         with:
