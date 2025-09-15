@@ -1,52 +1,55 @@
-name: Build iOS IPA (Unsigned for AltStore)
+name: Build iOS App
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # allows manual trigger
 
 jobs:
-  build-ios:
-    runs-on: macos-14
+  build:
+    runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v4
+      # 2. Install dependencies (Node & Capacitor)
+      - name: Install Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install npm dependencies
+        run: npm install
 
-      - name: Copy web assets
-        run: npx cap copy ios
+      # 3. Sync Capacitor project
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
 
-      - name: Install CocoaPods
-        run: |
-          cd ios/App
-          pod install --repo-update
-
-      - name: Build archive (unsigned)
+      # 4. Build Xcode archive (unsigned)
+      - name: Build Xcode Archive
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
-            -sdk iphoneos \
             -configuration Release \
-            -archivePath build/App.xcarchive archive \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+            -sdk iphoneos \
+            -archivePath App.xcarchive archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM=""
 
-      - name: Package unsigned IPA manually
+      # 5. Package unsigned .ipa manually
+      - name: Create unsigned IPA
         run: |
-          cd ios/App/build/App.xcarchive/Products/Applications
-          mkdir -p Payload
-          cp -r App.app Payload/
+          cd ios/App
+          mkdir -p build/Payload
+          # Copy the built .app into Payload
+          cp -R App.xcarchive/Products/Applications/App.app build/Payload/
+          cd build
+          # Zip into IPA
           zip -r unsigned.ipa Payload
-          mkdir -p ../../../..
-          mv unsigned.ipa ../../../..
 
+      # 6. Upload artifact (.ipa)
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: ios-ipa
+          name: unsigned-ipa
           path: ios/App/build/unsigned.ipa
